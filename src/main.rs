@@ -4,10 +4,10 @@ use serenity::async_trait;
 use serenity::prelude::*;
 use serenity::model::channel::Message;
 use serenity::framework::standard::macros::{command, group};
-use serenity::framework::standard::{StandardFramework, CommandResult};
+use serenity::framework::standard::{StandardFramework, CommandResult, Args};
 
 #[group]
-#[commands(ping)]
+#[commands(ping, multiply, divide, add, subtract)]
 struct General;
 
 struct Handler;
@@ -42,3 +42,48 @@ async fn ping(ctx: &Context, msg: &Message) -> CommandResult {
 
     Ok(())
 }
+
+#[command]
+async fn multiply(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+    let first = args.single::<f64>()?;
+    let second = args.single::<f64>()?;
+
+    let product = first * second;
+    msg.reply(ctx, format!("Your result is: {}", product)).await?;
+
+    Ok(())
+}
+
+#[command]
+async fn divide(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+    let first = args.single::<f64>()?;
+    let second = args.single::<f64>()?;
+
+    let product = first / second;
+    msg.reply(ctx, format!("Your result is: {}", product)).await?;
+
+    Ok(())
+}
+
+#[command]
+async fn add(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+    let first = args.single::<f64>()?;
+    let second = args.single::<f64>()?;
+
+    let product = first + second;
+    msg.reply(ctx, format!("Your result is: {}", product)).await?;
+
+    Ok(())
+}
+
+#[command]
+async fn subtract(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+    let first = args.single::<f64>()?;
+    let second = args.single::<f64>()?;
+
+    let product = first - second;
+    msg.reply(ctx, format!("Your result is: {}", product)).await?;
+
+    Ok(())
+}
+
