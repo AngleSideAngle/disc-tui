@@ -4,6 +4,7 @@ use serenity::async_trait;
 use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
 use serenity::prelude::*;
+use serenity::utils::MessageBuilder;
 
 struct Handler;
 
@@ -14,8 +15,19 @@ impl EventHandler for Handler {
     //
     // Event handlers are dispatched through a threadpool, and so multiple
     // events can be dispatched simultaneously.
-    async fn message(&self, _: Context, msg: Message) {
-        println!("{}: {}", msg.author, msg.content);
+    async fn message(&self, ctx: Context, msg: Message) {
+        if msg.author.id == 547910268081143830 {
+            // println!("{}: {}", msg.author, msg.content);
+            let resp = MessageBuilder::new()
+                .push("this is a test")
+                .push_bold(msg.author.name)
+                // .mention(msg.channel(cache_http))
+                .build();
+            if let Err(why) = msg.channel_id.say(&ctx.http, resp).await {
+                println!("error sending msg: {:?}", why)
+            }
+            
+        }
     }
 
     // Set a handler to be called on the `ready` event. This is called when a
@@ -31,6 +43,9 @@ impl EventHandler for Handler {
 
 #[tokio::main]
 async fn main() {
+    // load .env
+    dotenv::dotenv().expect("failed to load .env file");
+
     // Configure the client with your Discord bot token in the environment.
     let token = env::var("TOKEN").expect("Expected a token in the environment");
     // Set gateway intents, which decides what events the bot will be notified about
