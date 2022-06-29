@@ -1,76 +1,125 @@
-use std::env;
+use std::io::Error;
+use std::{env, thread};
 
 use serenity::async_trait;
-use serenity::model::channel::Message;
+use serenity::model::channel::{Message, Channel};
+use serenity::model::error;
 use serenity::model::gateway::Ready;
 use serenity::prelude::*;
 use serenity::utils::MessageBuilder;
+use tui::Frame;
+use tui::backend::Backend;
+use tui::widgets::{List, ListItem};
+use tui::{
+    backend::CrosstermBackend,
+    widgets::{Widget, Block, Borders},
+    layout::{Layout, Constraint, Direction},
+    Terminal
+};
+use std::{
+    io,
+    time::{Duration, Instant},
+};
+use crossterm::{
+    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+};
 
 struct Handler;
 
 #[async_trait]
 impl EventHandler for Handler {
-    // Set a handler for the `message` event - so that whenever a new message
-    // is received - the closure (or function) passed will be called.
-    //
-    // Event handlers are dispatched through a threadpool, and so multiple
-    // events can be dispatched simultaneously.
     async fn message(&self, ctx: Context, msg: Message) {
-        if msg.author.id == 547910268081143830 {
-            // println!("{}: {}", msg.author, msg.content);
-            let resp = MessageBuilder::new()
-                .push("this is a test")
-                .push_bold(msg.author.name)
-                // .mention(msg.channel(cache_http))
-                .build();
-            if let Err(why) = msg.channel_id.say(&ctx.http, resp).await {
-                println!("error sending msg: {:?}", why)
-            }
-            
-        }
+        println!("{}: {}", msg.author.name, msg.content);
     }
 
-    // Set a handler to be called on the `ready` event. This is called when a
-    // shard is booted, and a READY payload is sent by Discord. This payload
-    // contains data like the current user's guild Ids, current user data,
-    // private channels, and more.
-    //
-    // In this case, just print what the current user's username is.
     async fn ready(&self, _: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
     }
 }
 
 #[tokio::main]
-async fn main() {
-    // load .env
+async fn main() -> Result<(), io::Error> {
+    // set up discord bot
     dotenv::dotenv().expect("failed to load .env file");
-
-    // Configure the client with your Discord bot token in the environment.
     let token = env::var("TOKEN").expect("Expected a token in the environment");
-    // Set gateway intents, which decides what events the bot will be notified about
     let intents = GatewayIntents::all();
 
-    // Create a new instance of the Client, logging in as a bot. This will
-    // automatically prepend your bot token with "Bot ", which is a requirement
-    // by Discord for bot users.
-    let mut client =
-        Client::builder(&token, intents).event_handler(Handler).await.expect("Err creating client");
+    let mut client = Client::builder(&token, intents)
+        .event_handler(Handler)
+        .await
+        .expect("Err creating client");
+
+    let messages: Vec<ListItem> = Vec::new();
+    let li = List::new(messages);
     
-    // Finally, start a single shard, and start listening to events.
-    //
-    // Shards will automatically attempt to reconnect, and will perform
-    // exponential backoff until it reconnects.
+    let res = thread::spawn(|| {
+        run()
+    });
+    
     if let Err(why) = client.start().await {
         println!("Client error: {:?}", why);
     }
+    Ok(())
 }
 
-/*
-#[command]
-async fn ping(ctx: &Context, msg: &Message) -> CommandResult {
-    msg.reply(ctx, "Pong!").await?;
+fn run() -> Result<(), io::Error>{
+    // set up terminal
+    enable_raw_mode()?;
+    let mut stdout = io::stdout();
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
+
+    let res = run_app(&mut terminal);
+
+    // return terminal to original state
+    disable_raw_mode()?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
+    terminal.show_cursor()?;
+
+    if let Err(err) = res {
+        println!("{:?}", err)
+    }
 
     Ok(())
 }
-*/
+
+fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
+    loop {
+        terminal.draw(|f| ui(f))?;
+
+        if let Event::Key(key) = event::read()? {
+            if let KeyCode::Char('q') = key.code {
+                return Ok(());
+            }
+        }
+    }
+}
+
+fn ui<B: Backend>(f: &mut Frame<B>) {
+    let chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(
+            [
+                Constraint::Percentage(30),
+                Constraint::Percentage(70)
+            ]
+            .as_ref()
+        )
+        .split(f.size());
+
+    let block = Block::default()
+        .title("nav")
+        .borders(Borders::ALL);
+    f.render_widget(block, chunks[0]);
+    let block = Block::default()
+        .title("messages")
+        .borders(Borders::ALL);
+    f.render_widget(block, chunks[1]);
+}
