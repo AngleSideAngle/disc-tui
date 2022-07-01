@@ -1,14 +1,23 @@
-use std::io::Error;
-use std::{env, thread};
+#![allow(unused_imports)]
+mod app;
 
+use std::cell::RefCell;
+use std::io::Error;
+use std::rc::Rc;
+use std::sync::mpsc::{self, Receiver, Sender};
+use std::{env, thread, fmt};
+
+use app::{ui, App};
 use serenity::async_trait;
+use serenity::futures::SinkExt;
 use serenity::model::channel::{Message, Channel};
 use serenity::model::error;
 use serenity::model::gateway::Ready;
 use serenity::prelude::*;
 use serenity::utils::MessageBuilder;
-use tui::Frame;
+use tui::{Frame, terminal};
 use tui::backend::Backend;
+use tui::style::Style;
 use tui::widgets::{List, ListItem};
 use tui::{
     backend::CrosstermBackend,
@@ -30,7 +39,7 @@ struct Handler;
 
 #[async_trait]
 impl EventHandler for Handler {
-    async fn message(&self, ctx: Context, msg: Message) {
+    async fn message(&self, _: Context, msg: Message) {
         println!("{}: {}", msg.author.name, msg.content);
     }
 
@@ -40,86 +49,44 @@ impl EventHandler for Handler {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), io::Error> {
-    // set up discord bot
-    dotenv::dotenv().expect("failed to load .env file");
-    let token = env::var("TOKEN").expect("Expected a token in the environment");
-    let intents = GatewayIntents::all();
+async fn main() -> Result<(), Error> {
+    let app = Rc::new(RefCell::new(App::new()));
+    start_ui(app)?;
+    // // set up discord bot
+    // dotenv::dotenv().expect("failed to load .env file");
+    // let token = env::var("TOKEN").expect("Expected a token in the environment");
+    // let intents = GatewayIntents::all();
 
-    let mut client = Client::builder(&token, intents)
-        .event_handler(Handler)
-        .await
-        .expect("Err creating client");
-
-    let messages: Vec<ListItem> = Vec::new();
-    let li = List::new(messages);
+    // let mut client = Client::builder(&token, intents)
+    //     .event_handler(Handler)
+    //     .await
+    //     .expect("Err creating client");
     
-    let res = thread::spawn(|| {
-        run()
-    });
-    
-    if let Err(why) = client.start().await {
-        println!("Client error: {:?}", why);
-    }
+    // if let Err(why) = client.start().await {
+    //     println!("Client error: {:?}", why);
+    // }
     Ok(())
 }
 
-fn run() -> Result<(), io::Error>{
+fn start_ui(app: Rc<RefCell<App>>) -> Result<(), Error> {
     // set up terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
+    terminal.clear()?;
+    terminal.hide_cursor()?;
 
-    let res = run_app(&mut terminal);
+    loop {
+        let app = app.borrow();
+
+        terminal.draw(|f| ui::draw(f, &app))?;
+    }
 
     // return terminal to original state
     disable_raw_mode()?;
-    execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen,
-        DisableMouseCapture
-    )?;
+    terminal.clear()?;
     terminal.show_cursor()?;
 
-    if let Err(err) = res {
-        println!("{:?}", err)
-    }
-
     Ok(())
-}
-
-fn run_app<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
-    loop {
-        terminal.draw(|f| ui(f))?;
-
-        if let Event::Key(key) = event::read()? {
-            if let KeyCode::Char('q') = key.code {
-                return Ok(());
-            }
-        }
-    }
-}
-
-fn ui<B: Backend>(f: &mut Frame<B>) {
-    let chunks = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints(
-            [
-                Constraint::Percentage(30),
-                Constraint::Percentage(70)
-            ]
-            .as_ref()
-        )
-        .split(f.size());
-
-    let block = Block::default()
-        .title("nav")
-        .borders(Borders::ALL);
-    f.render_widget(block, chunks[0]);
-    let block = Block::default()
-        .title("messages")
-        .borders(Borders::ALL);
-    f.render_widget(block, chunks[1]);
 }
