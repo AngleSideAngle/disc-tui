@@ -1,6 +1,3 @@
-pub mod ui;
-pub mod state;
-
 struct AppState;
 
 impl Default for AppState {
