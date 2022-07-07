@@ -1,13 +1,15 @@
 #![allow(unused_imports)]
 mod app;
+mod ui;
 
 use std::cell::RefCell;
 use std::io::Error;
 use std::rc::Rc;
+use std::sync::Arc;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::{env, thread, fmt};
 
-use app::{ui, App};
+use app::App;
 use serenity::async_trait;
 use serenity::futures::SinkExt;
 use serenity::model::channel::{Message, Channel};
@@ -35,22 +37,14 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
-struct Handler;
 
-#[async_trait]
-impl EventHandler for Handler {
-    async fn message(&self, _: Context, msg: Message) {
-        println!("{}: {}", msg.author.name, msg.content);
-    }
-
-    async fn ready(&self, _: Context, ready: Ready) {
-        println!("{} is connected!", ready.user.name);
-    }
-}
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    let app = Rc::new(RefCell::new(App::new()));
+    dotenv::dotenv().expect("failed to load .env file");
+    let token = env::var("TOKEN").expect("Expected a token in the environment");
+    let app = Arc::new(App::new(token).await);
+    
     start_ui(app)?;
     // // set up discord bot
     // dotenv::dotenv().expect("failed to load .env file");
@@ -68,7 +62,7 @@ async fn main() -> Result<(), Error> {
     Ok(())
 }
 
-fn start_ui(app: Rc<RefCell<App>>) -> Result<(), Error> {
+fn start_ui(app: Arc<App>) -> Result<(), Error> {
     // set up terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -76,10 +70,8 @@ fn start_ui(app: Rc<RefCell<App>>) -> Result<(), Error> {
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
     terminal.hide_cursor()?;
-
+    let app = Arc::clone(&app);
     loop {
-        let app = app.borrow();
-
         terminal.draw(|f| ui::draw(f, &app))?;
     }
 

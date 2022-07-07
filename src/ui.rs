@@ -1,3 +1,4 @@
+use serenity::http::CacheHttp;
 use tui::{
     backend::Backend,
     widgets::{Block,List, Borders, ListItem},
