@@ -5,7 +5,7 @@ mod ui;
 use std::cell::RefCell;
 use std::io::Error;
 use std::rc::Rc;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::{env, thread, fmt};
 
@@ -37,32 +37,49 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
+struct Handler {
+    app: Arc<Mutex<App>>
+}
 
+
+#[async_trait]
+impl EventHandler for Handler {
+    async fn message(&self, _: Context, msg: Message) {
+        let mut state = self.app.lock().unwrap();
+        state.add_message(msg);
+    }
+
+    async fn ready(&self, _: Context, ready: Ready) {
+        println!("{} is connected!", ready.user.name);
+    }
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
+    let app = Arc::new(Mutex::new(App::new().await));
+    
+    // set up discord bot
     dotenv::dotenv().expect("failed to load .env file");
     let token = env::var("TOKEN").expect("Expected a token in the environment");
-    let app = Arc::new(App::new(token).await);
-    
-    start_ui(app)?;
-    // // set up discord bot
-    // dotenv::dotenv().expect("failed to load .env file");
-    // let token = env::var("TOKEN").expect("Expected a token in the environment");
-    // let intents = GatewayIntents::all();
+    let intents = GatewayIntents::all();
+    let mut client = Client::builder(&token, intents)
+        .event_handler(Handler { app: Arc::clone(&app)})
+        .await
+        .expect("Err creating client");
 
-    // let mut client = Client::builder(&token, intents)
-    //     .event_handler(Handler)
-    //     .await
-    //     .expect("Err creating client");
+    let state = Arc::clone(&app);
+    thread::spawn(move || {
+        start_ui(state).unwrap();
+    });
     
-    // if let Err(why) = client.start().await {
-    //     println!("Client error: {:?}", why);
-    // }
+    if let Err(why) = client.start().await {
+        println!("serenity error: {:?}", why);
+    }
+
     Ok(())
 }
 
-fn start_ui(app: Arc<App>) -> Result<(), Error> {
+fn start_ui(app: Arc<Mutex<App>>) -> Result<(), Error> {
     // set up terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -70,9 +87,14 @@ fn start_ui(app: Arc<App>) -> Result<(), Error> {
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
     terminal.hide_cursor()?;
-    let app = Arc::clone(&app);
     loop {
-        terminal.draw(|f| ui::draw(f, &app))?;
+        terminal.draw(|f| ui::draw(f, Arc::clone(&app)))?;
+
+        if let Event::Key(key) = event::read()? {
+            if let KeyCode::Char('q') = key.code {
+                break;
+            }
+        }
     }
 
     // return terminal to original state
