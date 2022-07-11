@@ -16,7 +16,7 @@ use serenity::model::channel::{Message, Channel};
 use serenity::model::error;
 use serenity::model::gateway::Ready;
 use serenity::prelude::*;
-use serenity::utils::MessageBuilder;
+use serenity::utils::{MessageBuilder, CustomMessage};
 use tui::{Frame, terminal};
 use tui::backend::Backend;
 use tui::style::Style;
@@ -45,6 +45,7 @@ struct Handler {
 #[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, _: Context, msg: Message) {
+        // println!("{}: {}", msg.author.name, msg.content);
         let mut state = self.app.lock().unwrap();
         state.add_message(msg);
     }
@@ -56,18 +57,19 @@ impl EventHandler for Handler {
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    let app = Arc::new(Mutex::new(App::new().await));
+    let app = Arc::new(Mutex::new(App::new()));
     
     // set up discord bot
     dotenv::dotenv().expect("failed to load .env file");
     let token = env::var("TOKEN").expect("Expected a token in the environment");
     let intents = GatewayIntents::all();
     let mut client = Client::builder(&token, intents)
-        .event_handler(Handler { app: Arc::clone(&app)})
+        .event_handler(Handler { app: Arc::clone(&app) })
         .await
         .expect("Err creating client");
 
     let state = Arc::clone(&app);
+    
     thread::spawn(move || {
         start_ui(state).unwrap();
     });
@@ -88,19 +90,22 @@ fn start_ui(app: Arc<Mutex<App>>) -> Result<(), Error> {
     terminal.clear()?;
     terminal.hide_cursor()?;
     loop {
+        // let mut test_message = CustomMessage::new();
+        // test_message.content("sus");
+        // app.lock().unwrap().add_message(test_message.build());
+        
         terminal.draw(|f| ui::draw(f, Arc::clone(&app)))?;
-
-        if let Event::Key(key) = event::read()? {
-            if let KeyCode::Char('q') = key.code {
-                break;
-            }
-        }
+        // if let Event::Key(key) = event::read()? {
+        //     if let KeyCode::Char('q') = key.code {
+        //         break;
+        //     }
+        // }
     }
 
     // return terminal to original state
-    disable_raw_mode()?;
-    terminal.clear()?;
-    terminal.show_cursor()?;
+    // disable_raw_mode()?;
+    // terminal.clear()?;
+    // terminal.show_cursor()?;
 
-    Ok(())
+    // Ok(())
 }

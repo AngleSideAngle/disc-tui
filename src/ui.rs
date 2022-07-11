@@ -28,8 +28,10 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, app: Arc<Mutex<App>>) {
     f.render_widget(block, chunks[0]);
 
     let state = app.lock().unwrap();
-    let msgs: Vec<ListItem> = state.messages.iter().map(|msg| ListItem::new(msg.content.clone())).collect::<Vec<ListItem>>();
-
+    let msgs: Vec<ListItem> = state.messages.iter().map(|msg|
+        ListItem::new(format!("{}: {}", msg.author.name, msg.content)))
+        .collect::<Vec<ListItem>>();
+    
     let message_block = List::new(msgs)
         .block(Block::default().title("messages").borders(Borders::ALL));
         // .style(Style::default())

@@ -9,7 +9,7 @@ pub struct App {
 }
 
 impl App {
-    pub async fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             messages: Vec::new(),
             channels: Vec::new(),
