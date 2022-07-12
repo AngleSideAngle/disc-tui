@@ -10,12 +10,11 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::{env, thread, fmt};
 
 use app::App;
-use serenity::async_trait;
 use serenity::futures::SinkExt;
 use serenity::model::channel::{Message, Channel};
 use serenity::model::error;
 use serenity::model::gateway::Ready;
-use serenity::prelude::*;
+use serenity::{prelude::*, async_trait};
 use serenity::utils::{MessageBuilder, CustomMessage};
 use tui::{Frame, terminal};
 use tui::backend::Backend;
@@ -37,26 +36,32 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
-struct Handler {
-    app: Arc<Mutex<App>>
+struct State;
+
+impl TypeMapKey for State {
+    type Value = Arc<Mutex<App>>;
 }
 
+struct Handler;
 
 #[async_trait]
 impl EventHandler for Handler {
-    async fn message(&self, _: Context, msg: Message) {
-        // println!("{}: {}", msg.author.name, msg.content);
-        let mut state = self.app.lock().unwrap();
-        state.add_message(msg);
+    async fn message(&self, ctx: Context, msg: Message) {
+        let state = {
+            let data_read = ctx.data.read().await;
+            data_read.get::<State>().unwrap().clone()
+        };
+        state.lock().unwrap().add_message(msg);
     }
 
-    async fn ready(&self, _: Context, ready: Ready) {
-        println!("{} is connected!", ready.user.name);
-    }
+    // async fn ready(&self, _: Context, ready: Ready) {
+    //     println!("{} is connected!", ready.user.name);
+    // }
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
+    // app represents the application's state
     let app = Arc::new(Mutex::new(App::new()));
     
     // set up discord bot
@@ -64,14 +69,13 @@ async fn main() -> Result<(), Error> {
     let token = env::var("TOKEN").expect("Expected a token in the environment");
     let intents = GatewayIntents::all();
     let mut client = Client::builder(&token, intents)
-        .event_handler(Handler { app: Arc::clone(&app) })
+        .event_handler(Handler)
+        .type_map_insert::<State>(Arc::clone(&app))
         .await
         .expect("Err creating client");
-
-    let state = Arc::clone(&app);
-    
+        
     thread::spawn(move || {
-        start_ui(state).unwrap();
+        start_ui(Arc::clone(&app)).unwrap();
     });
     
     if let Err(why) = client.start().await {
@@ -90,10 +94,6 @@ fn start_ui(app: Arc<Mutex<App>>) -> Result<(), Error> {
     terminal.clear()?;
     terminal.hide_cursor()?;
     loop {
-        // let mut test_message = CustomMessage::new();
-        // test_message.content("sus");
-        // app.lock().unwrap().add_message(test_message.build());
-        
         terminal.draw(|f| ui::draw(f, Arc::clone(&app)))?;
         // if let Event::Key(key) = event::read()? {
         //     if let KeyCode::Char('q') = key.code {
