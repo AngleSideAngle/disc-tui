@@ -1,9 +1,15 @@
+use crossterm::event::{KeyEvent, KeyCode};
 use serenity::{Client, model::{channel::{Message, Channel, self}, guild::Guild, gateway::Ready, id::{ChannelId, MessageId}}, prelude::GatewayIntents, async_trait, client::{EventHandler, Context, Cache}, json::NULL, cache};
 use std::{sync::Arc, env, process::exit};
 
+pub enum InputMode {
+    Viewing,
+    Editing,
+}
+
 pub struct App {
     pub should_quit: bool,
-    pub input_mode: bool,
+    pub input_mode: InputMode,
     pub input: String,
     pub messages: Vec<Message>,
     pub channel: ChannelId,
@@ -13,7 +19,7 @@ impl App {
     pub fn new(id: ChannelId) -> Self {
         Self {
             should_quit: false,
-            input_mode: false,
+            input_mode: InputMode::Viewing,
             input: String::new(),
             messages: Vec::new(),
             channel: id,
@@ -24,10 +30,37 @@ impl App {
         self.messages.push(msg);
     }
 
-    pub fn on_key(&mut self, c: char) {
-        match c {
-            'q' => self.should_quit = true,
-            c => self.input.push(c),
+    fn send_message(&mut self) {
+        // self.channel.say(http, input);
+        self.input.clear();
+    }
+
+    pub fn on_key(&mut self, key: KeyEvent) {
+        match self.input_mode {
+            InputMode::Viewing => match key.code {
+                KeyCode::Char('q') => {
+                    self.should_quit = true;
+                },
+                KeyCode::Char('e') => {
+                    self.input_mode = InputMode::Editing;
+                },
+                _ => {}
+            },
+            InputMode::Editing => match key.code {
+                KeyCode::Esc => {
+                    self.input_mode = InputMode::Viewing;
+                },
+                KeyCode::Char(c) => {
+                    self.input.push(c);
+                },
+                KeyCode::Backspace => {
+                    self.input.pop();
+                },
+                KeyCode::Enter => {
+                    self.send_message();
+                },
+                _ => {}
+            },
         }
     }
 }

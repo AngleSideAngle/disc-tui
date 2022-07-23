@@ -11,7 +11,7 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread::sleep;
 use std::{env, thread, fmt};
 
-use app::App;
+use app::{App, InputMode};
 use serenity::futures::SinkExt;
 use serenity::model::channel::{Message, Channel};
 use serenity::model::error;
@@ -80,7 +80,7 @@ async fn main() -> Result<(), Error> {
         .await
         .expect("Err creating client");
         
-    let res = thread::spawn(move || {
+    let ui_res = thread::spawn(move || {
         start_ui(app, tick_rate).unwrap();
     });
     let discord_res = client.start().await;
@@ -110,10 +110,7 @@ fn start_ui(app: Arc<Mutex<App>>, tick_rate: Duration) -> Result<(), Error> {
             
             if crossterm::event::poll(tick_rate)? {
                 if let Event::Key(key) = event::read()? {
-                    match key.code {
-                        KeyCode::Char(c) => app.on_key(c),
-                        _ => {}
-                    }
+                    app.on_key(key);
                 }
                 should_delay = false;
             }
