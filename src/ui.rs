@@ -3,13 +3,13 @@ use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard};
 use serenity::{http::CacheHttp, prelude::Mentionable, futures::channel::oneshot::channel, model::channel::Channel};
 use tui::{
     backend::Backend,
-    widgets::{Block,List, Borders, ListItem},
+    widgets::{Block,List, Borders, ListItem, Paragraph},
     layout::{Constraint, Direction, Layout, Rect}, Frame
 };
 
 use super::App;
 
-pub fn draw<B: Backend>(f: &mut Frame<B>, app: &RwLockReadGuard<App>) {
+pub fn draw<B: Backend>(f: &mut Frame<B>, app: &App) {
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -30,7 +30,7 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, app: &RwLockReadGuard<App>) {
         .map(|msg| ListItem::new(format!("{}: {}", msg.author.name, msg.content)))
         .collect::<Vec<ListItem>>();
     // explicitly dropping app to avoid deadlocks
-    drop(app);
+    // drop(app);
 
     // make blocks
     let message_block = List::new(message_list)
@@ -38,9 +38,11 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, app: &RwLockReadGuard<App>) {
         .title("I'll put the channel name here later")
         .borders(Borders::ALL));
 
-    let text_input = Block::default()
+    let text_input = Paragraph::new(app.input.as_ref())
+        .block(Block::default()
         .title("Message")
-        .borders(Borders::ALL);
+        .borders(Borders::ALL));
+    f.set_cursor(chunks[1].x + app.input.len() as u16 + 1, chunks[1].y + 1);
 
     // render blocks
     f.render_widget(message_block, chunks[0]);

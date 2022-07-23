@@ -6,8 +6,9 @@ use std::cell::RefCell;
 use std::io::Error;
 use std::process::exit;
 use std::rc::Rc;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{self, Receiver, Sender};
+use std::thread::sleep;
 use std::{env, thread, fmt};
 
 use app::App;
@@ -17,6 +18,7 @@ use serenity::model::error;
 use serenity::model::gateway::Ready;
 use serenity::{prelude::*, async_trait};
 use serenity::utils::{MessageBuilder, CustomMessage};
+use tokio::time::timeout;
 use tui::{Frame, terminal};
 use tui::backend::Backend;
 use tui::style::Style;
@@ -40,7 +42,7 @@ use crossterm::{
 struct State;
 
 impl TypeMapKey for State {
-    type Value = Arc<RwLock<App>>;
+    type Value = Arc<Mutex<App>>;
 }
 
 struct Handler;
@@ -53,28 +55,21 @@ impl EventHandler for Handler {
             data_read.get::<State>().unwrap().clone()
         };
         
-        // println!("{}", msg.content);
-        // if let Some(ch) = state.target_channel {
-        //     if ch == msg.channel_id {
         {
-            let mut state = state.write().unwrap();
-            state.add_message(msg);
+            let mut state = state.lock().unwrap();
+            if state.channel == msg.channel_id {
+                state.add_message(msg);
+            }
         }
-        //     }
-        // }
     }
-
-    // async fn ready(&self, _ctx: Context, _: Ready) {
-    //     println!("KLAJSFLKJ:OIQWEIOJFUQIWFEHUQWHEBIUQHFWE");
-    // }
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     // app represents the application's state
-    let app = Arc::new(RwLock::new(App::new(serenity::model::id::ChannelId(896815204048977934))));
+    let app = Arc::new(Mutex::new(App::new(serenity::model::id::ChannelId(816583284505968647))));
 
-    let tick_rate = Duration::from_millis(250);
+    let tick_rate = Duration::from_millis(100);
     // set up discord bot
     dotenv::dotenv().expect("failed to load .env file");
     let token = env::var("TOKEN").expect("Expected a token in the environment");
@@ -93,7 +88,7 @@ async fn main() -> Result<(), Error> {
     Ok(())
 }
 
-fn start_ui(app: Arc<RwLock<App>>, tick_rate: Duration) -> Result<(), Error> {
+fn start_ui(app: Arc<Mutex<App>>, tick_rate: Duration) -> Result<(), Error> {
     // set up terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -107,23 +102,31 @@ fn start_ui(app: Arc<RwLock<App>>, tick_rate: Duration) -> Result<(), Error> {
 
     // rendering loop
     loop {
-        let mut app = app.read().unwrap();
+        let mut should_delay = true;
+        {
+            let mut app = app.lock().unwrap();
 
-        terminal.draw(|f| ui::draw(f, &app))?;
-        
-        if crossterm::event::poll(tick_rate)? {
-            if let Event::Key(key) = event::read()? {
-                match key.code {
-                    KeyCode::Char('q') => break,
-                    // KeyCode::Char(c) => app.on_key(c),
-                    _ => {}
+            terminal.draw(|f| ui::draw(f, &app))?;
+            
+            if crossterm::event::poll(tick_rate)? {
+                if let Event::Key(key) = event::read()? {
+                    match key.code {
+                        KeyCode::Char(c) => app.on_key(c),
+                        _ => {}
+                    }
                 }
+                should_delay = false;
+            }
+
+            if app.should_quit {
+                break;
             }
         }
 
-        // if app.should_quit {
-        //     break;
-        // }
+        // TODO temp solution, slows entire app down
+        if should_delay {
+            sleep(tick_rate);
+        }
     }
 
     // return terminal to original state
