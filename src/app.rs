@@ -1,20 +1,18 @@
-use serenity::{Client, model::{channel::{Message, Channel}, guild::Guild, gateway::Ready}, prelude::GatewayIntents, async_trait, client::{EventHandler, Context, Cache}, json::NULL, cache};
+use serenity::{Client, model::{channel::{Message, Channel, self}, guild::Guild, gateway::Ready, id::ChannelId}, prelude::GatewayIntents, async_trait, client::{EventHandler, Context, Cache}, json::NULL, cache};
 use std::{sync::Arc, env};
 
 pub struct App {
+    pub should_quit: bool,
     pub messages: Vec<Message>,
-    pub channels: Vec<Channel>,
-    target_channel: Option<Channel>,
-    target_guild: Option<Guild>,
+    pub channel: ChannelId,
 }
 
 impl App {
-    pub fn new() -> Self {
+    pub fn new(id: ChannelId) -> Self {
         Self {
+            should_quit: false,
             messages: Vec::new(),
-            channels: Vec::new(),
-            target_channel: Option::None,
-            target_guild: Option::None,
+            channel: id,
         }
     }
     
@@ -22,8 +20,10 @@ impl App {
         self.messages.push(msg);
     }
 
-    // pub fn set_guild(&self, guild: Guild) {
-    //     self.current_guild = guild;
-    //     self.channels = 
-    // }
+    pub fn on_key(&mut self, c: char) {
+        match c {
+            'q' => self.should_quit = true,
+            _ => {}
+        }
+    }
 }

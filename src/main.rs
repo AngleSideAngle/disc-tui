@@ -5,7 +5,7 @@ mod ui;
 use std::cell::RefCell;
 use std::io::Error;
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::{env, thread, fmt};
 
@@ -51,19 +51,25 @@ impl EventHandler for Handler {
             let data_read = ctx.data.read().await;
             data_read.get::<State>().unwrap().clone()
         };
-        state.lock().unwrap().add_message(msg);
+        
+        println!("{}", msg.content);
+        // if let Some(ch) = state.target_channel {
+        //     if ch == msg.channel_id {
+        {
+            let mut state = state.lock().await;
+            state.add_message(msg);
+        }
+        //     }
+        // }
     }
-
-    // async fn ready(&self, _: Context, ready: Ready) {
-    //     println!("{} is connected!", ready.user.name);
-    // }
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     // app represents the application's state
-    let app = Arc::new(Mutex::new(App::new()));
-    
+    let app = Arc::new(Mutex::new(App::new(serenity::model::id::ChannelId(896815204048977934))));
+
+    let tick_rate = Duration::from_millis(250);
     // set up discord bot
     dotenv::dotenv().expect("failed to load .env file");
     let token = env::var("TOKEN").expect("Expected a token in the environment");
@@ -74,38 +80,59 @@ async fn main() -> Result<(), Error> {
         .await
         .expect("Err creating client");
         
-    thread::spawn(move || {
-        start_ui(Arc::clone(&app)).unwrap();
-    });
-    
-    if let Err(why) = client.start().await {
-        println!("serenity error: {:?}", why);
-    }
+    // let res = thread::spawn(move || {
+        // });
+        
+    let ui_res = start_ui(app, tick_rate);
+    let discord_res = client.start();
+
+    ui_res.await.unwrap();
+    // if let Err(why) = res.join() {
+    //     println!("tui error: {:?}", why)
+    // }
 
     Ok(())
 }
 
-fn start_ui(app: Arc<Mutex<App>>) -> Result<(), Error> {
+async fn start_ui(app: Arc<Mutex<App>>, tick_rate: Duration) -> Result<(), Error> {
     // set up terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
+    execute!(
+        stdout,
+        EnterAlternateScreen,
+        EnableMouseCapture
+    )?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
-    terminal.clear()?;
-    terminal.hide_cursor()?;
+
+    // rendering loop
     loop {
-        terminal.draw(|f| ui::draw(f, Arc::clone(&app)))?;
-        // if let Event::Key(key) = event::read()? {
-        //     if let KeyCode::Char('q') = key.code {
-        //         break;
-        //     }
-        // }
+        let mut app = app.lock().await;
+
+        terminal.draw(|f| ui::draw(f, &app))?;
+
+        if crossterm::event::poll(tick_rate)? {
+            if let Event::Key(key) = event::read()? {
+                match key.code {
+                    KeyCode::Char(c) => app.on_key(c),
+                    _ => {}
+                }
+            }
+        }
+
+        if app.should_quit {
+            break;
+        }
     }
 
     // return terminal to original state
-    // disable_raw_mode()?;
-    // terminal.clear()?;
-    // terminal.show_cursor()?;
-
-    // Ok(())
+    disable_raw_mode()?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
+    terminal.show_cursor()?;
+    Ok(())
 }
