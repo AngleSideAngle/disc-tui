@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard};
 
 use serenity::{http::CacheHttp, prelude::Mentionable, futures::channel::oneshot::channel, model::channel::Channel};
 use tui::{
@@ -9,7 +9,7 @@ use tui::{
 
 use super::App;
 
-pub fn draw<B: Backend>(f: &mut Frame<B>, app: &App) {
+pub fn draw<B: Backend>(f: &mut Frame<B>, app: &RwLockReadGuard<App>) {
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -22,11 +22,15 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, app: &App) {
         )
         .split(f.size());
 
+    // let app = app.read().unwrap();
+    
     // message list
     let message_list: Vec<ListItem> = app.messages
         .iter()
         .map(|msg| ListItem::new(format!("{}: {}", msg.author.name, msg.content)))
         .collect::<Vec<ListItem>>();
+    // explicitly dropping app to avoid deadlocks
+    drop(app);
 
     // make blocks
     let message_block = List::new(message_list)
