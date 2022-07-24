@@ -26,13 +26,6 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     app.height = chunks[0].height - 2;
     
     // generate message list
-    // println!("{}", chunks[0].height);
-    // let mut message_list = Vec::<ListItem>::new();
-    // for i in usize::from(chunks[0].height).. {
-    //     message_list.push(ListItem::new(app.messages[i].to_string()));
-    //     // message_list.push(ListItem::new("sussy"));
-    //     // println!("{}", i);
-    // }
     let message_list: Vec<ListItem> = app.messages
         .iter()
         .map(|msg| ListItem::new(msg.to_string()))
