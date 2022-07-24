@@ -12,17 +12,39 @@ use crate::app::InputMode;
 use super::App;
 
 pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
+    let chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Max(20),
+            Constraint::Percentage(80)
+        ]
+        .as_ref()
+        )
+        .split(f.size());
+    
+    draw_nav(f, app, chunks[0]);
+    draw_channel(f, app, chunks[1]);
+}
 
+fn draw_nav<B: Backend>(f: &mut Frame<B>, app: &mut App, area: Rect) {
+    let block = Block::default()
+        .title("Nav")
+        .borders(Borders::ALL);
+
+    f.render_widget(block, area);
+}
+
+fn draw_channel<B: Backend>(f: &mut Frame<B>, app: &mut App, area: Rect) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints(
             [
                 Constraint::Percentage(80),
-                Constraint::Percentage(20)
+                Constraint::Max(7)
             ]
             .as_ref()
         )
-        .split(f.size());
+        .split(area);
 
     // update message height (-2 because of borders)
     app.height = chunks[0].height - 2;
