@@ -1,5 +1,13 @@
 use crossterm::event::{KeyEvent, KeyCode};
-use serenity::{Client, model::{channel::{Message, Channel, self}, guild::Guild, gateway::Ready, id::{ChannelId, MessageId}}, prelude::GatewayIntents, async_trait, client::{EventHandler, Context, Cache}, json::NULL, cache, CacheAndHttp, http::Http};
+use serenity::{Client, model::channel::Message, http::Http};
+use serenity::client::{EventHandler, Context, Cache};
+use serenity::prelude::GatewayIntents;
+use serenity::model::id::{ChannelId, MessageId};
+use serenity::model::gateway::Ready;
+use serenity::model::guild::Guild;
+use serenity::model::channel;
+use serenity::model::channel::Channel;
+use serenity::CacheAndHttp;
 use std::{sync::Arc, env, process::exit};
 
 pub enum InputMode {
@@ -8,7 +16,10 @@ pub enum InputMode {
 }
 
 pub struct App {
-    http: Http,
+    // app holding http and cache probably breaks encapsulation since it's held inside client as well
+    // but it's the only way that will work
+    http: Arc<Http>,
+    cache: Arc<Cache>,
     pub should_quit: bool,
     pub input_mode: InputMode,
     pub input: String,
@@ -20,7 +31,8 @@ pub struct App {
 impl App {
     pub fn new(http: Http, channel: ChannelId) -> Self {
         Self {
-            http,
+            http: Arc::new(http),
+            cache: Arc::new(Cache::new()),
             should_quit: false,
             input_mode: InputMode::Viewing,
             input: String::new(),
@@ -29,9 +41,13 @@ impl App {
             height: 0,
         }
     }
+
+    pub fn set_cache(&mut self, cache: Arc<Cache>) {
+        self.cache = cache;
+    }
     
     pub fn add_message(&mut self, msg: Message) {
-        self.messages.push(format!("{}: {}", msg.author.name, msg.content));
+        self.messages.push(format!("{}: {}", msg.author.name, msg.content_safe(&self.cache)));
         // trim extra messages
         if self.messages.len() > self.height.into() {
             self.messages.drain(0..self.messages.len() - self.height as usize);

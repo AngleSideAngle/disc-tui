@@ -14,7 +14,7 @@ use app::{App, InputMode};
 use serenity::futures::SinkExt;
 use serenity::http::Http;
 use serenity::model::channel::{Message, Channel};
-use serenity::model::id::ChannelId;
+use serenity::model::id::{ChannelId, GuildId};
 use serenity::model::error;
 use serenity::model::gateway::Ready;
 use serenity::{prelude::*, async_trait, FutureExt};
@@ -80,6 +80,19 @@ impl EventHandler for Handler {
             if state.channel == msg.channel_id {
                 state.add_message(msg);
             }
+        }
+    }
+
+    async fn cache_ready(&self, ctx: Context, _guilds: Vec<GuildId>) {
+        let state = {
+            let data_read = ctx.data.read().await;
+            data_read.get::<State>().unwrap().clone()
+        };
+
+        // add cache to app
+        {
+            let mut state = state.lock().await;
+            state.set_cache(ctx.cache);
         }
     }
 }

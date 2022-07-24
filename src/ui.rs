@@ -41,6 +41,7 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         .block(Block::default()
         .title("Message")
         .borders(Borders::ALL));
+    // TODO different input for when the app is in edit mode
     f.set_cursor(chunks[1].x + app.input.len() as u16 + 1, chunks[1].y + 1);
 
     // render blocks
