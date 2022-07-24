@@ -9,7 +9,7 @@ use tui::{
 
 use super::App;
 
-pub fn draw<B: Backend>(f: &mut Frame<B>, app: &App) {
+pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -22,15 +22,21 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, app: &App) {
         )
         .split(f.size());
 
-    // let app = app.read().unwrap();
+    // update message height (-2 because of borders)
+    app.height = chunks[0].height - 2;
     
-    // message list
+    // generate message list
+    // println!("{}", chunks[0].height);
+    // let mut message_list = Vec::<ListItem>::new();
+    // for i in usize::from(chunks[0].height).. {
+    //     message_list.push(ListItem::new(app.messages[i].to_string()));
+    //     // message_list.push(ListItem::new("sussy"));
+    //     // println!("{}", i);
+    // }
     let message_list: Vec<ListItem> = app.messages
         .iter()
-        .map(|msg| ListItem::new(format!("{}: {}", msg.author.name, msg.content)))
-        .collect::<Vec<ListItem>>();
-    // explicitly dropping app to avoid deadlocks
-    // drop(app);
+        .map(|msg| ListItem::new(msg.to_string()))
+        .collect();
 
     // make blocks
     let message_block = List::new(message_list)

@@ -73,10 +73,10 @@ async fn main() -> Result<(), Error> {
 
     let http = Http::new(&token);
     // app represents the application's state
-    let app = Arc::new(Mutex::new(App::new(http, ChannelId(816583284505968647))));
+    let app = Arc::new(Mutex::new(App::new(http, ChannelId(838550870013509667))));
 
     let tick_rate = Duration::from_millis(100);
-    
+
     // set up discord bot
     let intents = GatewayIntents::all();
     let mut client = Client::builder(&token, intents)
@@ -86,11 +86,9 @@ async fn main() -> Result<(), Error> {
         .expect("Err creating client");
         
     let ui_res = tokio::spawn(async move {
-        start_ui(app, tick_rate).await;
+        start_ui(app, tick_rate).await.unwrap();
     });
-    // let discord_res = client.start_shard(0, 1);
-    // let ui_rs = start_ui(app, tick_rate);
-    let discord_res = client.start().await;
+    let _discord_res = client.start().await;
     ui_res.await.unwrap();
     
     Ok(())
@@ -113,7 +111,7 @@ async fn start_ui(app: Arc<Mutex<App>>, tick_rate: Duration) -> Result<(), Error
         {
             let mut app = app.lock().await;
 
-            terminal.draw(|f| ui::draw(f, &app))?;
+            terminal.draw(|f| ui::draw(f, &mut app))?;
             
             if crossterm::event::poll(tick_rate)? {
                 if let Event::Key(key) = event::read()? {

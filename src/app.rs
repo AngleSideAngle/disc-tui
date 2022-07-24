@@ -12,8 +12,9 @@ pub struct App {
     pub should_quit: bool,
     pub input_mode: InputMode,
     pub input: String,
-    pub messages: Vec<Message>,
+    pub messages: Vec<String>,
     pub channel: ChannelId,
+    pub height: u16,
 }
 
 impl App {
@@ -25,19 +26,25 @@ impl App {
             input: String::new(),
             messages: Vec::new(),
             channel,
+            height: 0,
         }
     }
     
     pub fn add_message(&mut self, msg: Message) {
-        self.messages.push(msg);
+        self.messages.push(format!("{}: {}", msg.author.name, msg.content));
+        // trim extra messages
+        if self.messages.len() > self.height.into() {
+            self.messages.drain(0..self.messages.len() - self.height as usize);
+
+        }
     }
 
     async fn send_message(&mut self) {
         let res = self.channel.say(&self.http, &self.input).await;
         self.input.clear();
-        // if let Err(why) = res {
-        //     println!("{}", why);
-        // }
+        if let Err(why) = res {
+            self.messages.push(why.to_string());
+        }
     }
 
     pub async fn on_key(&mut self, key: KeyEvent) {
