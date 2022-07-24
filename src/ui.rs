@@ -4,8 +4,10 @@ use serenity::{http::CacheHttp, prelude::Mentionable, futures::channel::oneshot:
 use tui::{
     backend::Backend,
     widgets::{Block,List, Borders, ListItem, Paragraph},
-    layout::{Constraint, Direction, Layout, Rect}, Frame
+    layout::{Constraint, Direction, Layout, Rect}, Frame, style::{Style, Color}
 };
+
+use crate::app::InputMode;
 
 use super::App;
 
@@ -38,11 +40,24 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         .borders(Borders::ALL));
 
     let text_input = Paragraph::new(app.input.as_ref())
+        .style(match app.input_mode {
+            InputMode::Viewing => Style::default(),
+            InputMode::Editing => Style::default().fg(Color::Yellow)
+        })
         .block(Block::default()
-        .title("Message")
-        .borders(Borders::ALL));
-    // TODO different input for when the app is in edit mode
-    f.set_cursor(chunks[1].x + app.input.len() as u16 + 1, chunks[1].y + 1);
+            .title("Message")
+            .borders(Borders::ALL)
+        );
+        
+    match app.input_mode {
+        InputMode::Viewing => {},
+        InputMode::Editing => {
+            f.set_cursor(
+                chunks[1].x + app.input.len() as u16 + 1,
+                chunks[1].y + 1
+            );
+        }
+    }
 
     // render blocks
     f.render_widget(message_block, chunks[0]);
