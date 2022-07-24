@@ -34,7 +34,7 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     // make blocks
     let message_block = List::new(message_list)
         .block(Block::default()
-        .title("I'll put the channel name here later")
+        .title("Channel")
         .borders(Borders::ALL));
 
     let text_input = Paragraph::new(app.input.as_ref())

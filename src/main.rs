@@ -87,10 +87,8 @@ impl EventHandler for Handler {
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     let args = Args::parse();
-    // get token from env
     dotenv::dotenv().expect("failed to load .env file");
     let token = env::var("TOKEN").expect("Expected a token in the environment");
-
     let http = Http::new(&token);
     
     match &args.action {

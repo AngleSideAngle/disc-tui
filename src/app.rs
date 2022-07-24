@@ -35,7 +35,6 @@ impl App {
         // trim extra messages
         if self.messages.len() > self.height.into() {
             self.messages.drain(0..self.messages.len() - self.height as usize);
-
         }
     }
 
@@ -43,7 +42,7 @@ impl App {
         let res = self.channel.say(&self.http, &self.input).await;
         self.input.clear();
         if let Err(why) = res {
-            self.messages.push(why.to_string());
+            self.messages.push(format!("[Error] {}", why.to_string()));
         }
     }
 
