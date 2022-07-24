@@ -1,5 +1,5 @@
 use crossterm::event::{KeyEvent, KeyCode};
-use serenity::{Client, model::{channel::{Message, Channel, self}, guild::Guild, gateway::Ready, id::{ChannelId, MessageId}}, prelude::GatewayIntents, async_trait, client::{EventHandler, Context, Cache}, json::NULL, cache};
+use serenity::{Client, model::{channel::{Message, Channel, self}, guild::Guild, gateway::Ready, id::{ChannelId, MessageId}}, prelude::GatewayIntents, async_trait, client::{EventHandler, Context, Cache}, json::NULL, cache, CacheAndHttp, http::Http};
 use std::{sync::Arc, env, process::exit};
 
 pub enum InputMode {
@@ -8,6 +8,7 @@ pub enum InputMode {
 }
 
 pub struct App {
+    http: Http,
     pub should_quit: bool,
     pub input_mode: InputMode,
     pub input: String,
@@ -16,13 +17,14 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(id: ChannelId) -> Self {
+    pub fn new(http: Http, channel: ChannelId) -> Self {
         Self {
+            http,
             should_quit: false,
             input_mode: InputMode::Viewing,
             input: String::new(),
             messages: Vec::new(),
-            channel: id,
+            channel,
         }
     }
     
@@ -30,12 +32,15 @@ impl App {
         self.messages.push(msg);
     }
 
-    fn send_message(&mut self) {
-        // self.channel.say(http, input);
+    async fn send_message(&mut self) {
+        let res = self.channel.say(&self.http, &self.input).await;
         self.input.clear();
+        // if let Err(why) = res {
+        //     println!("{}", why);
+        // }
     }
 
-    pub fn on_key(&mut self, key: KeyEvent) {
+    pub async fn on_key(&mut self, key: KeyEvent) {
         match self.input_mode {
             InputMode::Viewing => match key.code {
                 KeyCode::Char('q') => {
@@ -57,7 +62,7 @@ impl App {
                     self.input.pop();
                 },
                 KeyCode::Enter => {
-                    self.send_message();
+                    self.send_message().await;
                 },
                 _ => {}
             },

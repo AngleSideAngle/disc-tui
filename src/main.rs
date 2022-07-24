@@ -6,19 +6,20 @@ use std::cell::RefCell;
 use std::io::Error;
 use std::process::exit;
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc};
 use std::sync::mpsc::{self, Receiver, Sender};
-use std::thread::sleep;
 use std::{env, thread, fmt};
 
 use app::{App, InputMode};
 use serenity::futures::SinkExt;
+use serenity::http::Http;
 use serenity::model::channel::{Message, Channel};
+use serenity::model::id::ChannelId;
 use serenity::model::error;
 use serenity::model::gateway::Ready;
-use serenity::{prelude::*, async_trait};
+use serenity::{prelude::*, async_trait, FutureExt};
 use serenity::utils::{MessageBuilder, CustomMessage};
-use tokio::time::timeout;
+use tokio::time::{timeout, sleep};
 use tui::{Frame, terminal};
 use tui::backend::Backend;
 use tui::style::Style;
@@ -56,7 +57,7 @@ impl EventHandler for Handler {
         };
         
         {
-            let mut state = state.lock().unwrap();
+            let mut state = state.lock().await;
             if state.channel == msg.channel_id {
                 state.add_message(msg);
             }
@@ -66,13 +67,17 @@ impl EventHandler for Handler {
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    // app represents the application's state
-    let app = Arc::new(Mutex::new(App::new(serenity::model::id::ChannelId(816583284505968647))));
-
-    let tick_rate = Duration::from_millis(100);
-    // set up discord bot
+    // get token from env
     dotenv::dotenv().expect("failed to load .env file");
     let token = env::var("TOKEN").expect("Expected a token in the environment");
+
+    let http = Http::new(&token);
+    // app represents the application's state
+    let app = Arc::new(Mutex::new(App::new(http, ChannelId(816583284505968647))));
+
+    let tick_rate = Duration::from_millis(100);
+    
+    // set up discord bot
     let intents = GatewayIntents::all();
     let mut client = Client::builder(&token, intents)
         .event_handler(Handler)
@@ -80,15 +85,18 @@ async fn main() -> Result<(), Error> {
         .await
         .expect("Err creating client");
         
-    let ui_res = thread::spawn(move || {
-        start_ui(app, tick_rate).unwrap();
+    let ui_res = tokio::spawn(async move {
+        start_ui(app, tick_rate).await;
     });
+    // let discord_res = client.start_shard(0, 1);
+    // let ui_rs = start_ui(app, tick_rate);
     let discord_res = client.start().await;
-
+    ui_res.await.unwrap();
+    
     Ok(())
 }
 
-fn start_ui(app: Arc<Mutex<App>>, tick_rate: Duration) -> Result<(), Error> {
+async fn start_ui(app: Arc<Mutex<App>>, tick_rate: Duration) -> Result<(), Error> {
     // set up terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -102,27 +110,20 @@ fn start_ui(app: Arc<Mutex<App>>, tick_rate: Duration) -> Result<(), Error> {
 
     // rendering loop
     loop {
-        let mut should_delay = true;
         {
-            let mut app = app.lock().unwrap();
+            let mut app = app.lock().await;
 
             terminal.draw(|f| ui::draw(f, &app))?;
             
             if crossterm::event::poll(tick_rate)? {
                 if let Event::Key(key) = event::read()? {
-                    app.on_key(key);
+                    app.on_key(key).await;
                 }
-                should_delay = false;
             }
 
             if app.should_quit {
                 break;
             }
-        }
-
-        // TODO temp solution, slows entire app down
-        if should_delay {
-            sleep(tick_rate);
         }
     }
 
