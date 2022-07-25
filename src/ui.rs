@@ -57,7 +57,7 @@ fn draw_channel<B: Backend>(f: &mut Frame<B>, app: &mut App, area: Rect) {
 
     // make blocks
     let message_block = List::new(message_list)
-        .block(Block::default().border_type(tui::widgets::BorderType::Rounded)
+        .block(Block::default()
         .title("Channel")
         .borders(Borders::ALL));
 
@@ -66,7 +66,7 @@ fn draw_channel<B: Backend>(f: &mut Frame<B>, app: &mut App, area: Rect) {
             InputMode::Viewing => Style::default(),
             InputMode::Editing => Style::default().fg(Color::Yellow)
         })
-        .wrap(Wrap { trim: true })
+        .wrap(Wrap { trim: false })
         .block(Block::default()
             .title("Message")
             .borders(Borders::ALL)
@@ -74,7 +74,7 @@ fn draw_channel<B: Backend>(f: &mut Frame<B>, app: &mut App, area: Rect) {
         
     match app.input_mode {
         InputMode::Viewing => {},
-        InputMode::Editing => {
+        InputMode::Editing => { // note that the cursor gets jank after the first line if you use space
             f.set_cursor( // math so that text wrapping can work
                 chunks[1].x + 1 + (app.input.len() as u16) % (chunks[1].width - 2),
                 chunks[1].y + 1 + (app.input.len() as u16) / (chunks[1].width - 2)
