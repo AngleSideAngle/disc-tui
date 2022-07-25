@@ -55,6 +55,9 @@ impl App {
     }
 
     async fn send_message(&mut self) {
+        if self.input.is_empty() {
+            return
+        }
         let res = self.channel.say(&self.http, &self.input).await;
         self.input.clear();
         if let Err(why) = res {

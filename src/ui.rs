@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard};
 use serenity::{http::CacheHttp, prelude::Mentionable, futures::channel::oneshot::channel, model::channel::Channel};
 use tui::{
     backend::Backend,
-    widgets::{Block,List, Borders, ListItem, Paragraph},
+    widgets::{Block,List, Borders, ListItem, Paragraph, Wrap},
     layout::{Constraint, Direction, Layout, Rect}, Frame, style::{Style, Color}
 };
 
@@ -57,7 +57,7 @@ fn draw_channel<B: Backend>(f: &mut Frame<B>, app: &mut App, area: Rect) {
 
     // make blocks
     let message_block = List::new(message_list)
-        .block(Block::default()
+        .block(Block::default().border_type(tui::widgets::BorderType::Rounded)
         .title("Channel")
         .borders(Borders::ALL));
 
@@ -66,6 +66,7 @@ fn draw_channel<B: Backend>(f: &mut Frame<B>, app: &mut App, area: Rect) {
             InputMode::Viewing => Style::default(),
             InputMode::Editing => Style::default().fg(Color::Yellow)
         })
+        .wrap(Wrap { trim: true })
         .block(Block::default()
             .title("Message")
             .borders(Borders::ALL)
@@ -74,9 +75,9 @@ fn draw_channel<B: Backend>(f: &mut Frame<B>, app: &mut App, area: Rect) {
     match app.input_mode {
         InputMode::Viewing => {},
         InputMode::Editing => {
-            f.set_cursor(
-                chunks[1].x + app.input.len() as u16 + 1,
-                chunks[1].y + 1
+            f.set_cursor( // math so that text wrapping can work
+                chunks[1].x + 1 + (app.input.len() as u16) % (chunks[1].width - 2),
+                chunks[1].y + 1 + (app.input.len() as u16) / (chunks[1].width - 2)
             );
         }
     }
