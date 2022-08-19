@@ -6,40 +6,40 @@ use std::cell::RefCell;
 use std::io::Error;
 use std::process::exit;
 use std::rc::Rc;
-use std::sync::{Arc};
 use std::sync::mpsc::{self, Receiver, Sender};
-use std::{env, thread, fmt};
+use std::sync::Arc;
+use std::{env, fmt, thread};
 
 use app::{App, InputMode};
-use serenity::futures::SinkExt;
-use serenity::http::Http;
-use serenity::model::channel::{Message, Channel};
-use serenity::model::id::{ChannelId, GuildId};
-use serenity::model::error;
-use serenity::model::gateway::Ready;
-use serenity::{prelude::*, async_trait, FutureExt};
-use serenity::utils::{MessageBuilder, CustomMessage};
-use tokio::time::{timeout, sleep};
-use tui::{Frame, terminal};
-use tui::backend::Backend;
-use tui::style::Style;
-use tui::widgets::{List, ListItem};
-use tui::{
-    backend::CrosstermBackend,
-    widgets::{Widget, Block, Borders},
-    layout::{Layout, Constraint, Direction},
-    Terminal
-};
-use std::{
-    io,
-    time::{Duration, Instant},
-};
+use clap::Parser;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use clap::Parser;
+use serenity::futures::SinkExt;
+use serenity::http::Http;
+use serenity::model::channel::{Channel, Message};
+use serenity::model::error;
+use serenity::model::gateway::Ready;
+use serenity::model::id::{ChannelId, GuildId};
+use serenity::utils::{CustomMessage, MessageBuilder};
+use serenity::{async_trait, prelude::*, FutureExt};
+use std::{
+    io,
+    time::{Duration, Instant},
+};
+use tokio::time::{sleep, timeout};
+use tui::backend::Backend;
+use tui::style::Style;
+use tui::widgets::{List, ListItem};
+use tui::{
+    backend::CrosstermBackend,
+    layout::{Constraint, Direction, Layout},
+    widgets::{Block, Borders, Widget},
+    Terminal,
+};
+use tui::{terminal, Frame};
 
 #[derive(Parser)]
 #[clap(author = "Asa Paparo", version = "0.1", about)]
@@ -51,12 +51,8 @@ struct Args {
 #[derive(clap::Subcommand)]
 enum Action {
     Guilds,
-    Channels {
-        guild_id: u64
-    },
-    Open {
-        channel_id: u64
-    },
+    Channels { guild_id: u64 },
+    Open { channel_id: u64 },
 }
 
 struct State;
@@ -74,7 +70,7 @@ impl EventHandler for Handler {
             let data_read = ctx.data.read().await;
             data_read.get::<State>().unwrap().clone()
         };
-        
+
         {
             let mut state = state.lock().await;
             if state.channel == msg.channel_id {
@@ -103,7 +99,7 @@ async fn main() -> Result<(), Error> {
     dotenv::dotenv().expect("failed to load .env file");
     let token = env::var("TOKEN").expect("Expected a token in the environment");
     let http = Http::new(&token);
-    
+
     match &args.action {
         Action::Guilds => {
             let guilds = http.get_guilds(None, None).await.unwrap();
@@ -111,17 +107,20 @@ async fn main() -> Result<(), Error> {
                 println!("{}: {}", guild.name, guild.id);
             }
             Ok(())
-        },
+        }
         Action::Channels { guild_id } => {
             let guild = http.get_guild(guild_id.to_owned()).await.unwrap();
             for (id, channel) in guild.channels(http).await.unwrap() {
-                println!("{} | {}: {}", channel.kind.name(), channel.name(), id.as_u64());
+                println!(
+                    "{} | {}: {}",
+                    channel.kind.name(),
+                    channel.name(),
+                    id.as_u64()
+                );
             }
             Ok(())
-        },
-        Action::Open { channel_id }=> {
-            run(token, http, channel_id.to_owned()).await
         }
+        Action::Open { channel_id } => run(token, http, channel_id.to_owned()).await,
     }
 }
 
@@ -139,13 +138,13 @@ async fn run(token: String, http: Http, id: u64) -> Result<(), Error> {
         .type_map_insert::<State>(Arc::clone(&app))
         .await
         .expect("Err creating client");
-        
+
     let ui_res = tokio::spawn(async move {
         start_ui(app, tick_rate).await.unwrap();
     });
     let _discord_res = client.start().await;
     ui_res.await.unwrap();
-    
+
     Ok(())
 }
 
@@ -153,11 +152,7 @@ async fn start_ui(app: Arc<Mutex<App>>, tick_rate: Duration) -> Result<(), Error
     // set up terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
-    execute!(
-        stdout,
-        EnterAlternateScreen,
-        EnableMouseCapture
-    )?;
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
@@ -167,7 +162,7 @@ async fn start_ui(app: Arc<Mutex<App>>, tick_rate: Duration) -> Result<(), Error
             let mut app = app.lock().await;
 
             terminal.draw(|f| ui::draw(f, &mut app))?;
-            
+
             if crossterm::event::poll(tick_rate)? {
                 if let Event::Key(key) = event::read()? {
                     app.on_key(key).await;

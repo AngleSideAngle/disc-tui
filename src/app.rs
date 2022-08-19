@@ -1,14 +1,14 @@
-use crossterm::event::{KeyEvent, KeyCode};
-use serenity::{Client, model::channel::Message, http::Http};
-use serenity::client::{EventHandler, Context, Cache};
-use serenity::prelude::GatewayIntents;
-use serenity::model::id::{ChannelId, MessageId};
-use serenity::model::gateway::Ready;
-use serenity::model::guild::Guild;
+use crossterm::event::{KeyCode, KeyEvent};
+use serenity::client::{Cache, Context, EventHandler};
 use serenity::model::channel;
 use serenity::model::channel::Channel;
+use serenity::model::gateway::Ready;
+use serenity::model::guild::Guild;
+use serenity::model::id::{ChannelId, MessageId};
+use serenity::prelude::GatewayIntents;
 use serenity::CacheAndHttp;
-use std::{sync::Arc, env, process::exit};
+use serenity::{http::Http, model::channel::Message, Client};
+use std::{env, process::exit, sync::Arc};
 
 pub enum InputMode {
     Viewing,
@@ -45,18 +45,23 @@ impl App {
     pub fn set_cache(&mut self, cache: Arc<Cache>) {
         self.cache = cache;
     }
-    
+
     pub fn add_message(&mut self, msg: Message) {
-        self.messages.push(format!("{}: {}", msg.author.name, msg.content_safe(&self.cache)));
+        self.messages.push(format!(
+            "{}: {}",
+            msg.author.name,
+            msg.content_safe(&self.cache)
+        ));
         // trim extra messages
         if self.messages.len() > self.height.into() {
-            self.messages.drain(0..self.messages.len() - self.height as usize);
+            self.messages
+                .drain(0..self.messages.len() - self.height as usize);
         }
     }
 
     async fn send_message(&mut self) {
         if self.input.is_empty() {
-            return
+            return;
         }
         let res = self.channel.say(&self.http, &self.input).await;
         self.input.clear();
@@ -70,25 +75,25 @@ impl App {
             InputMode::Viewing => match key.code {
                 KeyCode::Char('q') => {
                     self.should_quit = true;
-                },
+                }
                 KeyCode::Char('e') => {
                     self.input_mode = InputMode::Editing;
-                },
+                }
                 _ => {}
             },
             InputMode::Editing => match key.code {
                 KeyCode::Esc => {
                     self.input_mode = InputMode::Viewing;
-                },
+                }
                 KeyCode::Char(c) => {
                     self.input.push(c);
-                },
+                }
                 KeyCode::Backspace => {
                     self.input.pop();
-                },
+                }
                 KeyCode::Enter => {
                     self.send_message().await;
-                },
+                }
                 _ => {}
             },
         }
