@@ -1,14 +1,8 @@
 use crossterm::event::{KeyCode, KeyEvent};
-use serenity::client::{Cache, Context, EventHandler};
-use serenity::model::channel;
-use serenity::model::channel::Channel;
-use serenity::model::gateway::Ready;
-use serenity::model::guild::Guild;
-use serenity::model::id::{ChannelId, MessageId};
-use serenity::prelude::GatewayIntents;
-use serenity::CacheAndHttp;
-use serenity::{http::Http, model::channel::Message, Client};
-use std::{env, process::exit, sync::Arc};
+use serenity::client::Cache;
+use serenity::model::id::ChannelId;
+use serenity::{http::Http, model::channel::Message};
+use std::sync::Arc;
 
 pub enum InputMode {
     Viewing,

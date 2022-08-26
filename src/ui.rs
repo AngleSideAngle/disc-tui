@@ -1,9 +1,3 @@
-use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard};
-
-use serenity::{
-    futures::channel::oneshot::channel, http::CacheHttp, model::channel::Channel,
-    prelude::Mentionable,
-};
 use tui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},

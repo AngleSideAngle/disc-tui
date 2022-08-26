@@ -1,45 +1,23 @@
-#![allow(unused_imports)]
 mod app;
 mod ui;
 
-use std::cell::RefCell;
-use std::io::Error;
-use std::process::exit;
-use std::rc::Rc;
-use std::sync::mpsc::{self, Receiver, Sender};
-use std::sync::Arc;
-use std::{env, fmt, thread};
-
-use app::{App, InputMode};
+use app::App;
 use clap::Parser;
+use crossterm::event;
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    event::{DisableMouseCapture, EnableMouseCapture, Event},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use serenity::futures::SinkExt;
-use serenity::http::Http;
-use serenity::model::channel::{Channel, Message};
-use serenity::model::error;
-use serenity::model::gateway::Ready;
 use serenity::model::id::{ChannelId, GuildId};
-use serenity::utils::{CustomMessage, MessageBuilder};
-use serenity::{async_trait, prelude::*, FutureExt};
-use std::{
-    io,
-    time::{Duration, Instant},
-};
-use tokio::time::{sleep, timeout};
-use tui::backend::Backend;
-use tui::style::Style;
-use tui::widgets::{List, ListItem};
-use tui::{
-    backend::CrosstermBackend,
-    layout::{Constraint, Direction, Layout},
-    widgets::{Block, Borders, Widget},
-    Terminal,
-};
-use tui::{terminal, Frame};
+use serenity::{async_trait, prelude::*};
+use serenity::{http::Http, model::channel::Message};
+use std::env;
+use std::io::Error;
+use std::process::exit;
+use std::sync::Arc;
+use std::{io, time::Duration};
+use tui::{backend::CrosstermBackend, Terminal};
 
 #[derive(Parser)]
 #[clap(author = "Asa Paparo", version = "0.1", about)]
